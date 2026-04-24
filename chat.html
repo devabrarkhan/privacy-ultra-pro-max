@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BrokenCorner | The Shadows</title>
+    <style>
+        /* Base Theme */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; }
+        body {
+            background-color: #121212;
+            color: #00ff41;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #121212 100%);
+        }
+
+        /* Glassmorphism Container */
+        .app-container {
+            background: rgba(18, 18, 18, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(0, 255, 65, 0.1);
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 10px 10px 30px rgba(0,0,0,0.8);
+            position: relative;
+        }
+
+        @media (min-width: 500px) {
+            .app-container { height: 90vh; border-radius: 20px; overflow: hidden; }
+        }
+
+        /* ----- VIEW 1: DASHBOARD ----- */
+        #dashboard-view {
+            display: flex; /* By default yeh dikhega */
+            flex-direction: column;
+            height: 100%;
+            padding: 20px;
+        }
+
+        .my-id-banner {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            margin-bottom: 20px;
+            box-shadow: inset 3px 3px 6px #070707, inset -3px -3px 6px #202020;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 12px;
+            background: #121212;
+            border: none;
+            color: #00ff41;
+            border-radius: 10px;
+            box-shadow: inset 3px 3px 6px #070707, inset -3px -3px 6px #1d1d1d;
+            outline: none;
+        }
+
+        .search-bar button {
+            background: #121212;
+            color: #00ff41;
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 3px 3px 6px #070707, -3px -3px 6px #1d1d1d;
+        }
+
+        .search-bar button:active { box-shadow: inset 3px 3px 6px #070707, inset -3px -3px 6px #1d1d1d; }
+
+        .chat-list-container {
+            flex: 1;
+            overflow-y: auto;
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+            padding-top: 20px;
+        }
+
+        .empty-state { text-align: center; color: #555; margin-top: 50px; font-style: italic; }
+
+        .chat-list-item {
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-list-item:hover { border-color: rgba(0, 255, 65, 0.3); }
+
+        /* ----- VIEW 2: CHAT VAULT (Purana wala structure, but hidden) ----- */
+        #chat-view {
+            display: none; /* By default chhupa rahega */
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #121212;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        .icon-btn {
+            background: transparent; border: none; cursor: pointer; padding: 8px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn svg { width: 24px; height: 24px; fill: none; stroke-width: 2; stroke: #00ff41; }
+        
+        .fire-btn svg { stroke: #ff003c; }
+        .fire-btn:hover { background: rgba(255, 0, 60, 0.1); }
+
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        .chat-input-area {
+            padding: 15px 20px; background: #121212; display: flex; align-items: center; gap: 10px;
+            border-top: 1px solid rgba(0, 255, 65, 0.1);
+        }
+        .chat-input {
+            flex: 1; padding: 12px 15px; background: #121212; border: none; color: #00ff41;
+            border-radius: 10px; box-shadow: inset 3px 3px 6px #070707, inset -3px -3px 6px #1d1d1d; outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <div id="dashboard-view">
+            <div class="my-id-banner">
+                <small style="color: #555;">MY IDENTITY</small><br>
+                <strong id="display-my-id" style="font-size: 20px;">LOADING...</strong>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Enter accurate ID to connect..." autocomplete="off">
+                <button id="search-btn">SEARCH</button>
+            </div>
+
+            <div class="chat-list-container" id="chat-list">
+                <div class="empty-state">No chats till now.<br>Start chatting!</div>
+                </div>
+        </div>
+
+
+        <div id="chat-view">
+            <div class="chat-header">
+                <div class="header-left">
+                    <button class="icon-btn" id="back-to-dash-btn">
+                        <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                    </button>
+                    <div class="user-info">
+                        <span class="status-dot" style="display:inline-block; width:8px; height:8px; background:#00ff41; border-radius:50%; margin-right:5px; box-shadow:0 0 8px #00ff41;"></span> 
+                        <span id="active-chat-id">BC-XXXXXX</span>
+                    </div>
+                </div>
+                
+                <button class="icon-btn fire-btn" title="Burn Chats">
+                    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2c0 0-4 7-2 11 1.1 2 4 2 5 0 .5-1 .5-3 0-4 0 0 3 4 1 8-1 2-3 3-5 3s-4-1-5-3c-2-4 1-8 1-8-2 4-2 11 2 15 2 2 5 2 7 0 4-4 2-12 2-12z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="chat-box" id="chat-box">
+                </div>
+
+            <div class="chat-input-area">
+                <button class="icon-btn action-btn"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></button>
+                <input type="text" class="chat-input" placeholder="Type a secret..." autocomplete="off">
+                <button class="icon-btn action-btn"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg></button>
+                <button class="icon-btn action-btn"><svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
+            </div>
+        </div>
+
+    </div>
+<script type="module" src="./js/chat.js"></script>
+
+</body>
+</html>
