@@ -29,7 +29,7 @@ let chatListener = null;
 // ==========================================
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        currentUserBCID = user.email.split('@')[0];
+        currentUserBCID = user.email.split('@')[0].toUpperCase();
         myIdDisplay.innerText = currentUserBCID;
         console.log("Logged in as:", currentUserBCID);
     } else {
