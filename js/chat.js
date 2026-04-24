@@ -1,10 +1,10 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, getDoc, collection, addDoc, serverTimestamp, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { encryptText, decryptText } from './crypto.js'; // decryptText bhi add kiya
+import { encryptText, decryptText } from './crypto.js';
 
 // ==========================================
-// 1. 🔍 ELEMENTS SELECT KARNA
+// 1. 🔍 ELEMENTS & VARIABLES
 // ==========================================
 const myIdDisplay = document.getElementById('display-my-id');
 const dashboardView = document.getElementById('dashboard-view');
@@ -13,45 +13,35 @@ const searchInput = document.getElementById('search-input');
 const searchBtn = document.getElementById('search-btn');
 const backBtn = document.getElementById('back-to-dash-btn');
 const activeChatIdDisplay = document.getElementById('active-chat-id');
-
-// Chat bhejne ke elements
 const chatInput = document.querySelector('.chat-input');
-const actionBtns = document.querySelectorAll('.action-btn'); 
-const sendBtn = actionBtns[2]; // 3rd button Send wala SVG hai
+const sendBtn = document.querySelectorAll('.action-btn')[2];
 
-// Global Variables (Data yaad rakhne ke liye)
 let currentUserBCID = "";
 let currentChatRoomId = "";
 let receiverPublicKey = "";
-let chatListener = null; 
+let chatListener = null;
+
 // ==========================================
-// 2. 🔐 CHECK LOGIN & GET ID
+// 2. 🔐 AUTH CHECK (With toUpperCase Fix)
 // ==========================================
 onAuthStateChanged(auth, (user) => {
     if (user) {
         currentUserBCID = user.email.split('@')[0].toUpperCase();
         myIdDisplay.innerText = currentUserBCID;
-        console.log("Logged in as:", currentUserBCID);
     } else {
-        window.location.href = "index.html"; // Bina login bhaga do
+        window.location.href = "index.html";
     }
 });
 
 // ==========================================
-// 3. 🗺️ NAVIGATION & SEARCH LOGIC
+// 3. 🗺️ NAVIGATION (Dashboard to Vault)
 // ==========================================
 searchBtn.addEventListener('click', () => {
     const targetId = searchInput.value.trim().toUpperCase();
-
-    if (!targetId.startsWith('BC-')) {
-        alert("Sahi ID dalo! ID hamesha BC- se start hoti hai.");
+    if (!targetId.startsWith('BC-') || targetId === currentUserBCID) {
+        alert("Invalid ID!"); 
         return;
     }
-    if (targetId === currentUserBCID) {
-        alert("Khud se kya baat karoge bhai? Kisi aur ka ID dalo!");
-        return;
-    }
-
     openChatVault(targetId);
 });
 
@@ -59,120 +49,113 @@ searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') searchBtn.click();
 });
 
-// Back Button Logic
 backBtn.addEventListener('click', () => {
     chatView.style.display = 'none';
     dashboardView.style.display = 'flex';
-    activeChatIdDisplay.innerText = "BC-XXXXXX";
-    currentChatRoomId = ""; // Room ID clear kar do
-    receiverPublicKey = ""; // Key clear kar do
-
-    // 👇 YAHAN AAYEGA WOH MISSING CODE 👇
     if (chatListener) {
-        chatListener(); // Purane chat ka listener band kar do (Stop listening)
+        chatListener(); // Stop listening to old chat
         chatListener = null;
     }
-    document.getElementById('chat-box').innerHTML = ''; // Screen se purani chat clear kar do
+    document.getElementById('chat-box').innerHTML = ''; // Clear screen
 });
 
-
-// ==========================================
-// 4. 🚪 OPEN CHAT ROOM & GET PUBLIC KEY
-// ==========================================
 async function openChatVault(targetId) {
     activeChatIdDisplay.innerText = targetId;
     dashboardView.style.display = 'none';
     chatView.style.display = 'flex';
     
-    // Room ID humesha Alphabetical order me banega taaki Abrar aur Mariya ka room ek hi rahe
+    // Sort to make consistent Room ID
     const array = [currentUserBCID, targetId].sort();
     currentChatRoomId = `${array[0]}_${array[1]}`;
 
     try {
-        // Samne wale ki Chabi (Public Key) database se mango
         const docSnap = await getDoc(doc(db, "users", targetId));
         if (docSnap.exists() && docSnap.data().publicKey) {
             receiverPublicKey = docSnap.data().publicKey;
-            console.log("Target Locked! Public Key mil gayi.");
-            chatInput.disabled = false;
-            startListeningForMessages(currentChatRoomId); 
+            startListeningForMessages(currentChatRoomId);
         } else {
-            alert("Samne wale ka account exist nahi karta ya key nahi hai.");
-            chatInput.disabled = true; 
+            alert("Account keys not found!");
         }
-    } catch (error) {
-        console.error("Error fetching key:", error);
-    }
+    } catch (e) { console.error("Key fetch error:", e); }
 }
 
 // ==========================================
-// 5. 📨 SEND ENCRYPTED MESSAGE LOGIC
+// 4. 📨 SEND LOGIC (With Local Memory Storage)
 // ==========================================
 sendBtn.addEventListener('click', async () => {
     const text = chatInput.value.trim();
     if (!text || !receiverPublicKey || !currentChatRoomId) return;
 
-    chatInput.value = ""; // Message jate hi input box khali kar do
+    chatInput.value = "";
+    const msgId = Date.now().toString(); // Unique ID for our local memory
 
     try {
-        // 🔒 Message ko kachre (Ciphertext) me badlo
         const encryptedText = await encryptText(text, receiverPublicKey);
+        
+        // Save unencrypted copy in browser memory so sender can read it
+        localStorage.setItem(`msg_${msgId}`, text);
 
-        if (!encryptedText) throw new Error("Encryption fail ho gaya");
-
-        // 🚀 Firebase me message bhej do
         await addDoc(collection(db, "chats", currentChatRoomId, "messages"), {
             senderId: currentUserBCID,
-            message: encryptedText, // Ye database me x8Hj... bankar jayega
+            message: encryptedText,
+            localId: msgId, // This links the DB message to our local memory
             timestamp: serverTimestamp()
         });
-
-        console.log("Encrypted message sent!");
-        
-    } catch (error) {
-        console.error("Message nahi gaya:", error);
-    }
+    } catch (e) { console.error("Send error:", e); }
 });
 
+// ENTER dabane par bhi message send ho (Ye miss hua tha pichli baar!)
 chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendBtn.click();
 });
+
 // ==========================================
-// 6. 📡 REAL-TIME RECEIVER ENGINE
+// 5. 📡 RECEIVE & LONG PRESS GHOST LOGIC
 // ==========================================
 function startListeningForMessages(roomId) {
     const chatBox = document.getElementById('chat-box');
     
-    // Database se messages lane ka query (Time ke hisab se line me)
+    // Query exact time ke hisab se set ki hai
     const q = query(collection(db, "chats", roomId, "messages"), orderBy("timestamp", "asc"));
 
-    // onSnapshot: Jaise hi database me naya message aayega, ye function turant chalega
     chatListener = onSnapshot(q, async (snapshot) => {
-        chatBox.innerHTML = ''; // Pehle purane messages hatao taaki duplicate na hon
+        chatBox.innerHTML = '';
         
-        const messages = snapshot.docs.map(doc => doc.data());
-
-        for (const msg of messages) {
-            let displayText = "";
+        for (const doc of snapshot.docs) {
+            const msg = doc.data();
             const isMe = msg.senderId === currentUserBCID;
+            let displayText = "";
 
             if (isMe) {
-                // MAHA-FLEX: Humne apna hi message samne wale ke tale se lock kiya tha.
-                // Toh hum khud usko nahi padh sakte database se! Isliye ye likha aayega.
-                displayText = "[Securely Dispatched]";
+                // Apna bheja hua message local memory se uthao
+                displayText = localStorage.getItem(`msg_${msg.localId}`) || "[Securely Dispatched]";
             } else {
-                // Agar samne wale ne bheja hai, toh apni Chabi se kholo!
+                // Samne wale ka message apni Chabi se kholo
                 displayText = await decryptText(msg.message);
             }
 
-            // Message ko screen par dikhana (Glassmorphism + Hold to Reveal)
             const msgDiv = document.createElement('div');
             msgDiv.className = `msg ${isMe ? 'sent' : 'received'}`;
             msgDiv.innerHTML = `<div class="blur-text">${displayText}</div>`;
+
+            // --- LONG PRESS GHOST EFFECT ---
+            const reveal = () => msgDiv.classList.add('revealed');
+            const hide = () => msgDiv.classList.remove('revealed');
+
+            // Mobile touch events
+            msgDiv.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); // Copy menu block karta hai
+                reveal(); 
+            });
+            msgDiv.addEventListener('touchend', hide);
+            
+            // Desktop mouse events
+            msgDiv.addEventListener('mousedown', reveal);
+            msgDiv.addEventListener('mouseup', hide);
+            msgDiv.addEventListener('mouseleave', hide);
+
             chatBox.appendChild(msgDiv);
         }
-
-        // Scroll automatically niche chala jaye
         chatBox.scrollTop = chatBox.scrollHeight;
     });
 }
